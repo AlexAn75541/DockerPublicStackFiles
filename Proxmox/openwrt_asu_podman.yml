@@ -1,0 +1,74 @@
+services:
+  redis:
+    image: docker.io/library/redis:7.2-alpine
+    container_name: openwrt-asu-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - /home/script/openwrt_asu_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - openwrt_asu_net
+
+  server:
+    image: localhost/openwrt-asu-patched:latest
+    container_name: openwrt-asu-server
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uv run uvicorn --host 0.0.0.0 --port 8000 asu.main:app
+    ports:
+      - "3000:8000"
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379/0
+      PUBLIC_PATH: /home/script/asu_public
+    volumes:
+      - /home/script/asu_public:/home/script/asu_public
+    networks:
+      - openwrt_asu_net
+
+  worker:
+    image: localhost/openwrt-asu-patched:latest
+    container_name: openwrt-asu-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uv run rqworker --logging_level INFO
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379/0
+      PUBLIC_PATH: /home/script/asu_public
+      CONTAINER_SOCKET_PATH: /var/run/docker.sock
+    volumes:
+      - /run/podman/podman.sock:/var/run/docker.sock:rw
+      - /home/script/podman-config/containers.conf:/etc/containers/containers.conf:ro
+      - /home/script/asu_public:/home/script/asu_public
+    networks:
+      - openwrt_asu_net
+
+  cleanup:
+    image: docker.io/library/alpine:3.21
+    container_name: openwrt-asu-cleanup
+    restart: unless-stopped
+    depends_on:
+      - worker
+    environment:
+      ASU_WORK_DIR: /home/script/asu_public/store
+      CLEANUP_DELAY_SECONDS: "20"
+    command: sh -c 'apk add --no-cache inotify-tools && /scripts/openwrt_asu_script.sh --watch'
+    volumes:
+      - /home/script/openwrt_asu_script.sh:/scripts/openwrt_asu_script.sh:ro
+      - /home/script/asu_public:/home/script/asu_public
+    networks:
+      - openwrt_asu_net
+
+networks:
+  openwrt_asu_net:
+    driver: bridge

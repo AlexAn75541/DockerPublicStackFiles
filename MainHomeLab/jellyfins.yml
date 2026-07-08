@@ -1,0 +1,33 @@
+version: '3.8'
+
+networks:
+  jellyfin_default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24   # Defines the range 172.20.0.1 to 172.20.0.254
+          gateway: 172.30.0.1
+
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    networks:
+      jellyfin_default:
+        ipv4_address: 172.30.0.10
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+      - "7359:7359/udp"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Ho_Chi_Minh
+      - JELLYFIN_PublishedServerUrl=[your shit here]
+    volumes:
+      - [your shit here]/jellyfin:/config
+      - [your shit here]:/data/nextcloud
+      - /usr/lib/x86_64-linux-gnu/dri/i965_drv_video.so:/usr/lib/x86_64-linux-gnu/dri/i965_drv_video.so:ro
+    devices:
+      - /dev/dri:/dev/dri

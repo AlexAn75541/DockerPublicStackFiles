@@ -1,0 +1,65 @@
+serverAddr = "103.116.52.240"
+serverPort = 36901
+auth.method = "token"
+auth.token = "[your shit here]"
+transport.tcpMux = true
+transport.protocol = "quic"
+transport.poolCount = 5
+
+# Don't Starve Together dedicated server uses UDP ports.
+# Keep these on the same values used by the local server cluster.
+[[proxies]]
+name = "dst-master"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 10999
+remotePort = 10999
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-cluster"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 10888
+remotePort = 10888
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-master-steam-master"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 27018
+remotePort = 27018
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-master-steam-auth"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 27019
+remotePort = 27019
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-caves"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 11000
+remotePort = 11000
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-caves-steam-master"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 27020
+remotePort = 27020
+transport.useEncryption = true
+
+[[proxies]]
+name = "dst-caves-steam-auth"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 27021
+remotePort = 27021
+transport.useEncryption = true

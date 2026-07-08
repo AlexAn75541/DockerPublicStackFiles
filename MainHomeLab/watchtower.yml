@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  watchtower-main:
+    image: ghcr.io/nicholas-fedor/watchtower:latest
+    container_name: watchtower-main
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_SCHEDULE=0 0 */7 * *
+      - WATCHTOWER_SCOPE=main-group
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=[your shit here]
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: 
+      - nextcloud
+      - nextcloud-mariadb
+      - nextcloud-redis
+      - jellyfin
+      - nextcloud-go-vod
+      - nextcloud-onlyoffice-docs
+      - nextcloud-nginx
+      - immich-server
+      - immich-redis
+      - immich-postgres
+      - immich-machine-learning
+      - nextcloud-clamav
+
+  watchtower-panel:
+    image: ghcr.io/nicholas-fedor/watchtower:latest
+    container_name: watchtower-panel
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_SCHEDULE=0 0 15 * *
+      - WATCHTOWER_SCOPE=panel-group
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=[your shit here]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: 
+      - ptero_panel-caddy-1
+      - ptero_panel-wings-1
+      - ptero_panel-panel-1
+      - ptero_panel-cache-1
+      - ptero_panel-database-1
+
+  watchtower-other:
+    image: ghcr.io/nicholas-fedor/watchtower:latest
+    container_name: watchtower-other
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_SCHEDULE=0 0 * * *
+      - WATCHTOWER_SCOPE=other-group
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=[your shit here]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: 
+      - beszel-agent
+      - dozzle
+      - qbittorrent1
+      - warp
+      - soulseek
+      - slskd
+      - cloudflared

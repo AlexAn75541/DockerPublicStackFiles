@@ -1,0 +1,38 @@
+name: Verify Docker Stack Files
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate stack file syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t stack_files < <(
+            find . -type f \( -name '*.yml' -o -name '*.yaml' \) \
+              -not -path './.git/*' \
+              -not -path './.github/*' \
+              | sort
+          )
+
+          if [ "${#stack_files[@]}" -eq 0 ]; then
+            echo "No stack files found."
+            exit 0
+          fi
+
+          for file in "${stack_files[@]}"; do
+            echo "Validating ${file}"
+            docker compose -f "${file}" config --quiet
+          done

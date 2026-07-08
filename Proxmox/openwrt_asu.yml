@@ -1,0 +1,90 @@
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: openwrt-asu-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - openwrt_asu_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - openwrt_asu_net
+
+  server:
+    image: openwrt/asu:latest
+    container_name: openwrt-asu-server
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uv run uvicorn --host 0.0.0.0 --port 8000 asu.main:app
+    ports:
+      - "3000:8000"
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379/0
+      ASU_REDIS_URL: redis://redis:6379/0
+      ASU_BUILD_DIR: /srv/asu/build
+      ASU_OUTPUT_DIR: /srv/asu/output
+      ASU_DATA_DIR: /srv/asu/data
+    volumes:
+      - ./openwrt_asu_data:/srv/asu/data
+      - ./openwrt_asu_output:/srv/asu/output
+      - ./openwrt_asu_build:/srv/asu/build
+    networks:
+      - openwrt_asu_net
+
+  worker:
+    image: openwrt/asu:latest
+    container_name: openwrt-asu-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uv run rqworker --logging_level INFO
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379/0
+      ASU_REDIS_URL: redis://redis:6379/0
+      ASU_BUILD_DIR: /srv/asu/build
+      ASU_OUTPUT_DIR: /srv/asu/output
+      ASU_DATA_DIR: /srv/asu/data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./openwrt_asu_data:/srv/asu/data
+      - ./openwrt_asu_build:/srv/asu/build
+      - ./openwrt_asu_output:/srv/asu/output
+    networks:
+      - openwrt_asu_net
+
+  cleanup:
+    image: alpine:3.21
+    container_name: openwrt-asu-cleanup
+    restart: unless-stopped
+    depends_on:
+      - worker
+    environment:
+      ASU_WORK_DIR: /srv/asu/build
+      ASU_OUTPUT_DIR: /srv/asu/output
+      CLEANUP_DELAY_SECONDS: "20"
+    command:
+      - /bin/sh
+      - -ec
+      - apk add --no-cache inotify-tools && /scripts/openwrt_asu_script.sh --watch
+    volumes:
+      - /home/script/openwrt_asu_script.sh:/scripts/openwrt_asu_script.sh:ro
+      - ./openwrt_asu_build:/srv/asu/build
+      - ./openwrt_asu_output:/srv/asu/output:ro
+    networks:
+      - openwrt_asu_net
+
+volumes:
+  openwrt_asu_redis_data:
+
+networks:
+  openwrt_asu_net:
+    driver: bridge

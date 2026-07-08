@@ -1,0 +1,29 @@
+services:
+  beszel-agent:
+    image: henrygd/beszel-agent-intel
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    privileged: true # Provides full access to host processes and hardware
+    cap_add:
+      - CAP_PERFMON # Required for Intel GPU monitoring
+    devices:
+      - /dev/dri:/dev/dri # Maps Intel GPU hardware to the container
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro # Allows the agent to see host processes
+      - /sys:/host/sys:ro
+      - ./beszel_agent_data:/var/lib/beszel-agent
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+      - [your shit here]:ro
+      # monitor other disks / partitions by mounting a folder in /extra-filesystems
+    environment:
+      SENSORS: -nct6776_systin
+      SENSORS_EXCLUDE: nct6776_systin
+      LISTEN: 45876
+      KEY: '[your shit here]'
+      TOKEN: [your shit here]
+      HUB_URL: [your shit here]
+      EXTRA_FILESYSTEMS: '[your shit here]'

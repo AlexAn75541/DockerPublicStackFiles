@@ -1,0 +1,10 @@
+bindPort = 36888
+quicBindPort = 36888
+auth.method = "token"
+auth.token = "[your shit here]"
+# transport.tls.force = true
+proxyBindAddr = "0.0.0.0"
+transport.tcpMux = true
+
+# transport.heartbeatInterval = 30
+# transport.heartbeatTimeout = 90

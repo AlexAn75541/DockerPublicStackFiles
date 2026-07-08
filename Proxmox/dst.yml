@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  dst-init:
+    image: alpine:3.21
+    container_name: dst_init
+    restart: "no"
+    command: ["/bin/sh", "/scripts/setup-dst.sh"]
+    environment:
+      DST_CLUSTER_TOKEN: "[your shit here]"
+      DST_CLUSTER_PASSWORD: "[your shit here]" # ik it got exposed but meh
+    volumes:
+      - /root/dst/save:/data/save
+      - /root/dst/mods:/data/mods
+      - /root/dst/ugc_mods:/data/ugc_mods
+      - /root/dst_setup.sh:/scripts/setup-dst.sh:ro
+
+  dst-master:
+    image: superjump22/dontstarvetogether:latest
+    container_name: dst_master
+    restart: unless-stopped
+    depends_on:
+      dst-init:
+        condition: service_completed_successfully
+    ports:
+      - "10888:10888/udp"
+      - "10999:10999/udp"
+      - "27018:27018/udp"
+      - "27019:27019/udp"
+    volumes:
+      - /root/dst/save:/home/steam/dst/save
+      - /root/dst/mods:/home/steam/dst/game/mods
+      - /root/dst/ugc_mods:/home/steam/dst/game/ugc_mods
+    command:
+      - "-skip_update_server_mods"
+      - "-ugc_directory"
+      - "/home/steam/dst/game/ugc_mods"
+      - "-persistent_storage_root"
+      - "/home/steam/dst"
+      - "-conf_dir"
+      - "save"
+      - "-cluster"
+      - "Cluster_1"
+      - "-shard"
+      - "Master"
+
+  dst-caves:
+    image: superjump22/dontstarvetogether:latest
+    container_name: dst_caves
+    restart: unless-stopped
+    depends_on:
+      dst-master:
+        condition: service_started
+    ports:
+      - "11000:11000/udp"
+      - "27020:27020/udp"
+      - "27021:27021/udp"
+    volumes:
+      - /root/dst/save:/home/steam/dst/save
+      - /root/dst/mods:/home/steam/dst/game/mods
+      - /root/dst/ugc_mods:/home/steam/dst/game/ugc_mods
+    command:
+      - "-skip_update_server_mods"
+      - "-ugc_directory"
+      - "/home/steam/dst/game/ugc_mods"
+      - "-persistent_storage_root"
+      - "/home/steam/dst"
+      - "-conf_dir"
+      - "save"
+      - "-cluster"
+      - "Cluster_1"
+      - "-shard"
+      - "Caves"

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  watchtower:
+    image: ghcr.io/nicholas-fedor/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_SCHEDULE=0 0 1 * * 0
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=[your shit here]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: 
+      - portainer
+      - beszel
+      - beszel-agent

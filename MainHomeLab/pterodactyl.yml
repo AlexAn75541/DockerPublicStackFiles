@@ -1,0 +1,122 @@
+version: '3.8'
+
+volumes:
+  ptero_db:
+  ptero_redis:
+  ptero_panel:
+  ptero_logs:
+  caddy_data:
+  caddy_config:
+  #wings_config:
+  #wings_data:
+  #wings_logs:
+
+networks:
+  pteropanel_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.0.0/24
+          gateway: 10.100.0.1
+
+services:
+  database:
+    image: mariadb:lts
+    restart: always
+    hostname: database
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: [your shit here]
+      MYSQL_DATABASE: panel
+      MYSQL_USER: [your shit here]
+      MYSQL_PASSWORD: [your shit here]
+    volumes:
+      - ptero_db:/var/lib/mysql
+    networks:
+      - pteropanel_net
+
+  cache:
+    image: redis:latest
+    hostname: cache
+    restart: always
+    volumes:
+      - ptero_redis:/data
+    networks:
+      - pteropanel_net
+
+  panel:
+    image: ghcr.io/pterodactyl/panel:latest
+    hostname: panel
+    restart: always
+    environment:
+      APP_URL: http://panel.lan:11000
+      APP_TIMEZONE: Asia/Ho_Chi_Minh
+      APP_SERVICE_AUTHOR: admin@ptero.local
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_DATABASE: panel
+      DB_USERNAME: [your shit here]
+      DB_PASSWORD: [your shit here]
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: cache
+    volumes:
+      - ptero_panel:/app/var/
+      - ptero_logs:/app/storage/logs/
+    networks:
+      - pteropanel_net
+
+  caddy:
+    image: caddy:latest
+    restart: always
+    ports:
+      - "11000:11000"
+      - "11443:11443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    command: caddy reverse-proxy --from http://panel.lan:11000 --to panel:80
+    networks:
+      - pteropanel_net
+  debian:
+    image: debian:trixie
+    container_name: debian
+    networks: 
+      - pteropanel_net
+    #volumes:
+     # - wings_config:/edit/wings_congfigs
+    #  - wings_data:/edit/wings_data
+    tty: true
+    stdin_open: true
+    command: /bin/bash -c "apt-get update && apt-get install -y nano && tail -f /dev/null"
+    
+  wings:
+    image: ghcr.io/pterodactyl/wings:latest
+    restart: always
+    hostname: wings.local
+    networks:
+      - pteropanel_net
+    ports:
+      - "12000:12000" # Panel communication
+      - "12001:12001" # SFTP
+      # - "12002-12100:12002-12100" # Game server port range
+    tty: true
+    environment:
+      TZ: "Asia/Ho_Chi_Minh"
+      WINGS_UID: 988
+      WINGS_GID: 988
+      WINGS_USERNAME: pterodactyl
+      WINGS_DOCKER_NETWORK_MODE: "pterodactyl_nw"
+      WINGS_DOCKER_NETWORK_ISPN: "true"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/var/lib/docker/containers/:/var/lib/docker/containers/"
+      - "/home/user/pterodactyl/config/config.yml:/etc/pterodactyl/config.yml"
+      - "/home/user/pterodactyl:/home/user/pterodactyl"
+      - "/tmp/pterodactyl:/tmp/pterodactyl"
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 6GB

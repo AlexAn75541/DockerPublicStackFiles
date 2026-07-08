@@ -1,0 +1,14 @@
+version: "3.3"
+
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    user: 0:0   # run as root
+    volumes:
+      - /:/srv   # mount host root directory
+      - /etc/filebrowser/filebrowser.db:/database.db
+      - /etc/filebrowser/settings.json:/config.json
+    ports:
+      - 8080:80
+    restart: unless-stopped

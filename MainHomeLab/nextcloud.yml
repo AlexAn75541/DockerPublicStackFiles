@@ -1,0 +1,231 @@
+version: '3.8'
+
+networks:
+  nextcloud_ncnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24   # Defines the range 172.20.0.1 to 172.20.0.254
+          gateway: 172.19.0.1
+
+services:
+  nextcloud:
+    image: nextcloud:fpm
+    container_name: nextcloud
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.10
+    environment:
+      - MYSQL_HOST=[your shit here]
+      - MYSQL_DATABASE=[your shit here]
+      - MYSQL_USER=[your shit here]
+      - MYSQL_PASSWORD=[your shit here]
+      - NEXTCLOUD_ADMIN_USER=[your shit here]
+      - NEXTCLOUD_ADMIN_PASSWORD=[your shit here]
+      - NEXTCLOUD_TRUSTED_DOMAINS=[your shit here]
+      - TZ=Asia/Ho_Chi_Minh
+      - PHP_MEMORY_LIMIT=8096M
+      - PHP_UPLOAD_LIMIT=4048M
+      - REDIS_HOST=nextcloud-redis
+    volumes:
+      - [your shit here]:/var/www/html
+      - [your shit here]/ffmpeg:/usr/bin/ffmpeg:ro
+      - [your shit here]/ffprobe:/usr/bin/ffprobe:ro
+      - [your shit here]/nextcloud-fpm-config/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+
+    depends_on:
+      - mariadb
+      - nextcloud-redis
+      - onlyoffice-docs
+      # - nextcloud-go-vod
+
+  nextcloud-nginx:
+    image: nginx:alpine
+    container_name: nextcloud-nginx
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.11
+    ports:
+      - "8081:80"
+    volumes:
+      - [your shit here]:/var/www/html:ro # from the nextcloud dir
+      - [your shit here]/nextcloud-nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - nextcloud
+
+
+
+  mariadb:
+    image: mariadb:lts
+    container_name: nextcloud-mariadb
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.9
+    environment:
+      - MYSQL_ROOT_PASSWORD=[your shit here]
+      - MYSQL_DATABASE=[your shit here]
+      - MYSQL_USER=[your shit here]
+      - MYSQL_PASSWORD=[your shit here]
+      - TZ=Asia/Ho_Chi_Minh
+    command:
+      - --transaction-isolation=READ-COMMITTED
+      - --innodb-buffer-pool-size=768M
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --performance_schema=OFF
+    volumes:
+      - [your shit here]/db:/var/lib/mysql
+
+  nextcloud-redis:
+    image: redis:latest
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.8
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - [your shit here]/redis:/data
+
+  onlyoffice-docs:
+    image: ghcr.io/euro-office/documentserver:latest
+    container_name: nextcloud-onlyoffice-docs
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.7
+    ports:
+      - "8069:80"
+    environment:
+      - JWT_SECRET=[your shit here]
+      - EXAMPLE_ENABLED=true
+    volumes:
+      - onlyoffice_data:/var/www/euro-office/Data
+
+  clamav:
+    image: clamav/clamav:unstable-debian13-slim
+    container_name: nextcloud-clamav
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.6
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - [your shit here]/clamav/db:/var/lib/clamav
+      - [your shit here]/clamav/run:/var/run/clamav
+  #nextcloud-go-vod:
+   # image: radialapps/go-vod:latest
+    #container_name: nextcloud-go-vod
+    #restart: unless-stopped
+    #networks:
+    #  nextcloud_ncnet:
+    #    ipv4_address: 172.19.0.6
+    #environment:
+    #  - NEXTCLOUD_HOST=[your shit here]
+    #devices:
+    #  - /dev/dri/renderD128:/dev/dri/renderD128
+    #  - /dev/dri/card0:/dev/dri/card0
+    #ports:
+    #  - "47788:47788"
+    #volumes:
+    #  # Mapping your HDD data so the transcoder can "see" the videos
+    #  - [your shit here]:ro
+
+  # ─── Immich Services ───────────────────────────────────────────────
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich-server
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.20
+    ports:
+      - "2283:2283"
+    environment:
+      - DB_HOSTNAME=[your shit here]
+      - DB_USERNAME=[your shit here]
+      - DB_PASSWORD=[your shit here]
+      - DB_DATABASE_NAME=[your shit here]
+      - REDIS_HOSTNAME=immich-redis
+      - IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - [your shit here]/immich/upload:/usr/src/app/upload
+      # Mount Nextcloud user data as read-only for External Library
+      - [your shit here]/nextcloud/html/data:/mnt/nextcloud-data
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/card0:/dev/dri/card0
+    depends_on:
+      - immich-postgres
+      - immich-redis
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.21
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - [your shit here]/immich/model-cache:/cache
+
+  immich-postgres:
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    container_name: immich-postgres
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.22
+    environment:
+      - POSTGRES_USER=[your shit here]
+      - POSTGRES_PASSWORD=[your shit here]
+      - POSTGRES_DB=[your shit here]
+      - POSTGRES_INITDB_ARGS=--data-checksums
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - [your shit here]/immich/postgres:/var/lib/postgresql/data
+
+  immich-redis:
+    image: redis:latest
+    container_name: immich-redis
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.23
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - [your shit here]/immich/redis:/data
+
+  immich-nc-cleaner: # bullshit
+    image: ghcr.io/alexan75541/dockerexpeimmichnccleaner:main-45ddaca
+    container_name: immich-nc-cleaner
+    restart: unless-stopped
+    networks:
+      nextcloud_ncnet:
+        ipv4_address: 172.19.0.24
+    environment:
+      - IMMICH_CONTAINER_NAME=immich-server
+      - NEXTCLOUD_CONTAINER_NAME=nextcloud
+    volumes:
+      - [your shit here]/docker.sock:/var/run/docker.sock
+    depends_on:
+      - immich-server
+      - nextcloud
+
+volumes:
+  onlyoffice_data:
